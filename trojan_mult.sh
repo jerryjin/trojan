@@ -9,7 +9,7 @@ function red(){
     echo -e "\033[31m\033[01m$1\033[0m"
 }
 function version_lt(){
-    test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" != "$1"; 
+    test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" != "$1";
 }
 
 source /etc/os-release
@@ -79,8 +79,9 @@ EOF
             exit 1
         fi
         curl https://get.acme.sh | sh
-        ~/.acme.sh/acme.sh  --register-account  -m test@$your_domain --server zerossl
-        ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
+        ~/.acme.sh/acme.sh  --set-default-ca --server letsencrypt
+        ~/.acme.sh/acme.sh  --register-account  -m test@$your_domain --server letsencrypt
+        ~/.acme.sh/acme.sh  --issue  -d $your_domain --nginx --server letsencrypt
         if test -s /root/.acme.sh/$your_domain/fullchain.cer; then
             cert_success="1"
         fi
@@ -91,25 +92,27 @@ EOF
         minus=$(($now_time - $create_time ))
         if [  $minus -gt 5184000 ]; then
             curl https://get.acme.sh | sh
-            ~/.acme.sh/acme.sh  --register-account  -m test@$your_domain --server zerossl
-            ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
+            ~/.acme.sh/acme.sh  --set-default-ca --server letsencrypt
+            ~/.acme.sh/acme.sh  --register-account  -m test@$your_domain --server letsencrypt
+            ~/.acme.sh/acme.sh  --issue  -d $your_domain --nginx --server letsencrypt
             if test -s /root/.acme.sh/$your_domain/fullchain.cer; then
                 cert_success="1"
             fi
-        else 
+        else
             green "检测到域名$your_domain证书存在且未超过60天，无需重新申请"
             cert_success="1"
-        fi        
-    else 
+        fi
+    else
         mkdir /usr/src/trojan-cert/$your_domain
         curl https://get.acme.sh | sh
-        ~/.acme.sh/acme.sh  --register-account  -m test@$your_domain --server zerossl
-        ~/.acme.sh/acme.sh  --issue  -d $your_domain  --nginx
+        ~/.acme.sh/acme.sh  --set-default-ca --server letsencrypt
+        ~/.acme.sh/acme.sh  --register-account  -m test@$your_domain --server letsencrypt
+        ~/.acme.sh/acme.sh  --issue  -d $your_domain --nginx --server letsencrypt
         if test -s /root/.acme.sh/$your_domain/fullchain.cer; then
             cert_success="1"
         fi
     fi
-    
+
     if [ "$cert_success" == "1" ]; then
         cat > /etc/nginx/nginx.conf <<-EOF
 user  root;
@@ -142,7 +145,7 @@ http {
         server_name  $your_domain;
         return 301 https://$your_domain\$request_uri;
     }
-    
+
 }
 EOF
         systemctl restart nginx
@@ -248,21 +251,21 @@ EOF
         rm -f /usr/src/trojan-cli.zip
         trojan_path=$(cat /dev/urandom | head -1 | md5sum | head -c 16)
         #mkdir /usr/share/nginx/html/${trojan_path}
-        #mv /usr/src/trojan-cli/trojan-cli.zip /usr/share/nginx/html/${trojan_path}/	
+        #mv /usr/src/trojan-cli/trojan-cli.zip /usr/share/nginx/html/${trojan_path}/
         cat > ${systempwd}trojan.service <<-EOF
-[Unit]  
-Description=trojan  
-After=network.target  
-   
-[Service]  
-Type=simple  
+[Unit]
+Description=trojan
+After=network.target
+
+[Service]
+Type=simple
 PIDFile=/usr/src/trojan/trojan/trojan.pid
-ExecStart=/usr/src/trojan/trojan -c "/usr/src/trojan/server.conf"  
+ExecStart=/usr/src/trojan/trojan -c "/usr/src/trojan/server.conf"
 ExecReload=/bin/kill -HUP \$MAINPID
 Restart=on-failure
 RestartSec=1s
-   
-[Install]  
+
+[Install]
 WantedBy=multi-user.target
 EOF
 
@@ -272,7 +275,7 @@ EOF
         ~/.acme.sh/acme.sh  --installcert  -d  $your_domain   \
             --key-file   /usr/src/trojan-cert/$your_domain/private.key \
             --fullchain-file  /usr/src/trojan-cert/$your_domain/fullchain.cer \
-            --reloadcmd  "systemctl restart trojan"	
+            --reloadcmd  "systemctl restart trojan"
         green "==========================================================================="
         green "windows客户端路径/usr/src/trojan-cli/trojan-cli.zip，此客户端已配置好所有参数"
         green "==========================================================================="
@@ -430,8 +433,9 @@ function repair_cert(){
     real_addr=`ping ${your_domain} -c 1 | sed '1{s/[^(]*(//;s/).*//;q}'`
     local_addr=`curl ipv4.icanhazip.com`
     if [ $real_addr == $local_addr ] ; then
-        ~/.acme.sh/acme.sh  --register-account  -m test@$your_domain --server zerossl
-        ~/.acme.sh/acme.sh  --issue  -d $your_domain  --standalone
+        ~/.acme.sh/acme.sh  --set-default-ca --server letsencrypt
+        ~/.acme.sh/acme.sh  --register-account  -m test@$your_domain --server letsencrypt
+        ~/.acme.sh/acme.sh  --issue  -d $your_domain --standalone --server letsencrypt
         ~/.acme.sh/acme.sh  --installcert  -d  $your_domain   \
             --key-file   /usr/src/trojan-cert/$your_domain/private.key \
             --fullchain-file /usr/src/trojan-cert/$your_domain/fullchain.cer \
@@ -500,8 +504,8 @@ function update_trojan(){
     else
         green "当前版本$curr_version,最新版本$latest_version,无需升级"
     fi
-   
-   
+
+
 }
 
 start_menu(){
@@ -528,13 +532,13 @@ start_menu(){
     preinstall_check
     ;;
     2)
-    remove_trojan 
+    remove_trojan
     ;;
     3)
-    update_trojan 
+    update_trojan
     ;;
     4)
-    repair_cert 
+    repair_cert
     ;;
     0)
     exit 1
